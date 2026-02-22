@@ -1,0 +1,560 @@
+{
+  "name": "AI Recruiter Resume Screening and Candidate Management System",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "candidateName",
+              "value": "={{ $('Webhook Trigger').item.json.body.fullName }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "candidateEmail",
+              "value": "={{ $('Webhook Trigger').item.json.body.email }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "resumeText",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "jobDescription",
+              "value": "={{ $('Webhook Trigger').item.json.body.jobDescription }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a6696a09-bf1f-4afb-ba72-f6003ec8386e",
+      "name": "Prepare Resume Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        944,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following candidate information using the weighted ATS framework.\n\nRESUME TEXT:\n{{ $json.resumeText }}\n\nJOB DESCRIPTION:\n{{ $json.jobDescription }}\n\nSCORING WEIGHTS:\n\n1. Skills Match (30%)\n   - Compare required technical and relevant soft skills.\n   - Assign a numeric score from 0–100.\n\n2. Experience Relevance (40%)\n   - Compare role alignment, responsibilities, and seniority match.\n   - Assign a numeric score from 0–100.\n\n3. Keyword Alignment (20%)\n   - Evaluate presence of key job description terminology.\n   - Assign a numeric score from 0–100.\n\n4. Education Match (10%)\n   - Verify minimum education requirements.\n   - Assign a numeric score from 0–100.\n\nCALCULATION:\n\nfinalScore = \n(skillsScore × 0.30) +\n(experienceScore × 0.40) +\n(keywordScore × 0.20) +\n(educationScore × 0.10)\n\nRound the finalScore to the nearest whole number.\nReturn the result in the required JSON format.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are a deterministic ATS scoring engine.\n\nYour job is to calculate a weighted ATS score using explicit mathematical calculation.\n\nCRITICAL RULES:\n\n- You MUST calculate each category score numerically from 0 to 100.\n- You MUST multiply each category score by its weight.\n- You MUST compute the weighted final score using exact math.\n- You MUST round the final score to the nearest whole integer.\n- The atsScore must be a number between 0 and 100.\n- Do NOT output percentages.\n- Do NOT output markdown.\n- Do NOT include explanations outside the JSON.\n- Output ONLY valid JSON.\n- Do NOT hallucinate missing resume information.\n- If information is missing, reduce the score accordingly.\n\nOUTPUT FORMAT (STRICT):\n\n{\n  \"atsScore\": number,\n  \"decision\": \"Selected\" or \"Rejected\",\n  \"evaluation\": \"Concise professional explanation\"\n}\n\nDECISION RULE:\nIf atsScore >= 70 → \"Selected\"\nIf atsScore < 70 → \"Rejected\""
+        }
+      },
+      "id": "d75d6440-4ba6-4877-b264-4e3b9bc6accd",
+      "name": "ATS Score Evaluator",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1200,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('ATS Score Evaluator').item.json.output.atsScore }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "e89af5fa-c4f7-4312-800c-fbf40d85168c",
+      "name": "Check ATS Score Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1520,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "Candidate Name",
+              "value": "={{ $('Prepare Resume Data').item.json.candidateName }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "Email",
+              "value": "={{ $('Prepare Resume Data').item.json.candidateEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "ATS Score",
+              "value": "={{ $json.output.atsScore }}",
+              "type": "number"
+            },
+            {
+              "id": "id-4",
+              "name": "Evaluation",
+              "value": "={{ $json.output.evaluation }}",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "Skills Match",
+              "value": "={{ $json.output.skillsMatch }}",
+              "type": "string"
+            },
+            {
+              "id": "id-6",
+              "name": "Experience Match",
+              "value": "={{ $json.output.experienceMatch }}",
+              "type": "string"
+            },
+            {
+              "id": "id-7",
+              "name": "Date",
+              "value": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "253458c6-3a08-4bee-867e-5003ee99b005",
+      "name": "Prepare Accepted Candidate Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1744,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Prepare Resume Data').item.json.candidateEmail }}",
+        "subject": "Congratulations! Your Application Has Been Accepted",
+        "message": "=Dear {{ $('Prepare Resume Data').item.json.candidateName }},\n\nCongratulations! We are pleased to inform you that your application has been accepted. Your ATS score of {{ $('ATS Score Evaluator').item.json.output.atsScore }} demonstrates strong alignment with our requirements.\n\nWe would like to schedule an interview with you. Please check your calendar for the Google Meet invitation.\n\nWe look forward to speaking with you soon!\n\nBest regards,\nRecruitment Team",
+        "options": {}
+      },
+      "id": "0fa9232f-04b8-4afd-95f6-ad3e77dad849",
+      "name": "Send Acceptance Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2416,
+        32
+      ],
+      "webhookId": "17187c54-58ed-470a-8374-9663d0db4816",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ia02eu7BKzhbMlax",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "maheshjoicy@gmail.com",
+          "mode": "list",
+          "cachedResultName": "maheshjoicy@gmail.com"
+        },
+        "start": "={{ $now.plus(2, 'days').set({ hour: 10, minute: 0 }).toISO() }}",
+        "end": "={{ $now.plus(2, 'days').set({ hour: 11, minute: 0 }).toISO() }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $('Prepare Resume Data').item.json.candidateEmail }}"
+          ],
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          },
+          "summary": "=Interview with {{ $('Prepare Resume Data').item.json.candidateName }}"
+        }
+      },
+      "id": "961a75da-73bf-48cf-a106-003bbfe7b1b0",
+      "name": "Create Interview Google Meet",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        2640,
+        32
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "SROwZ3mbmixSIwfZ",
+          "name": "Google Calendar account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "recipientEmail",
+              "value": "={{ $('Prepare Resume Data').item.json.candidateEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "recipientName",
+              "value": "={{ $('Prepare Resume Data').item.json.candidateName }}",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "subject",
+              "value": "Thank You for Your Application",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "emailBody",
+              "value": "=Dear {{ $('Prepare Resume Data').item.json.candidateName }},\n\nThank you for taking the time to apply for this position and for sharing your resume with us. We truly appreciate your interest in joining our team.\n\nAfter careful review of your application, we regret to inform you that we will not be moving forward with your candidacy at this time. This decision was not easy, as we received many qualified applications.\n\nWe encourage you to continue pursuing opportunities that align with your skills and experience. We wish you the very best in your job search and future career endeavors.\n\nThank you again for considering us.\n\nWarm regards,\nRecruitment Team",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "32162997-45ff-460e-ac53-081a12ea9001",
+      "name": "Prepare Rejection Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2000,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.recipientEmail }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.emailBody }}",
+        "options": {}
+      },
+      "id": "ff5bac67-85ef-43bb-acbb-72d5738cda4f",
+      "name": "Send Rejection Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        2224,
+        288
+      ],
+      "webhookId": "9db1e128-fd0b-4983-b91f-2efa896b390e",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ia02eu7BKzhbMlax",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-recruiter",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "binaryPropertyName": "data",
+          "ipWhitelist": "",
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST"
+              }
+            ]
+          }
+        }
+      },
+      "id": "fdfccebb-9a6b-4723-a9c7-0114ef8b87f4",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        256,
+        128
+      ],
+      "webhookId": "beee113d-4e2a-456c-9055-5e8c702111e7",
+      "notesInFlow": false,
+      "retryOnFail": false,
+      "executeOnce": false,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "529b9e1d-6026-4ddb-a6de-8b819222347f",
+      "name": "Google Gemini Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        352
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Tv9GeeA7HuXQI8CM",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"={{ $('ATS Score Evaluator').item.json.output.atsScore >= 70 ? 'Application accepted! Interview scheduled.' : 'Thank you for your application.' }}\",\n  \"atsScore\": {{ $('ATS Score Evaluator').item.json.output.atsScore }},\n  \"evaluation\": \"={{ $('ATS Score Evaluator').item.json.output.evaluation }}\"\n}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "9cdb2284-06f6-42cf-93d0-6d55c20674b5",
+      "name": "Send Response to Frontend",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2896,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and prepare the resume data\nfor (const item of $input.all()) {\n  // 1. Clean the extracted text (remove extra whitespace/newlines)\n  let rawText = item.json.text || \"\";\n  let cleanText = rawText\n    .replace(/\\s+/g, ' ') // Replace multiple spaces/newlines with a single space\n    .trim();\n\n  // 2. Map the data to a clean JSON structure\n  item.json.resumeText = cleanText;\n  \n  // 3. Log a helper message if text is missing\n  if (!cleanText) {\n    item.json.debug_message = \"Warning: No text was extracted from the file.\";\n  }\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        128
+      ],
+      "id": "6086a47c-7b2b-4b96-b589-e7b7e918acf3",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"atsScore\":{\"type\":\"number\",\"description\":\"ATS score from 0-100\"},\"evaluation\":{\"type\":\"string\",\"description\":\"Detailed evaluation rationale\"},\"decision\":{\"type\":\"string\",\"description\":\"Selected or Rejected\"}},\"required\":[\"atsScore\",\"evaluation\",\"decision\"]}"
+      },
+      "id": "aa23d965-5dbb-43ba-84d3-a07af11f9f6a",
+      "name": "Structured Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1392,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "data0",
+        "options": {}
+      },
+      "id": "aee7aea8-3484-41fd-a049-992fed22134b",
+      "name": "Extract Resume Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        464,
+        128
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Prepare Resume Data": {
+      "main": [
+        [
+          {
+            "node": "ATS Score Evaluator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ATS Score Evaluator": {
+      "main": [
+        [
+          {
+            "node": "Check ATS Score Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check ATS Score Threshold": {
+      "main": [
+        [
+          {
+            "node": "Prepare Accepted Candidate Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Rejection Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Accepted Candidate Data": {
+      "main": [
+        [
+          {
+            "node": "Send Acceptance Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Acceptance Email": {
+      "main": [
+        [
+          {
+            "node": "Create Interview Google Meet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Interview Google Meet": {
+      "main": [
+        [
+          {
+            "node": "Send Response to Frontend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Rejection Email": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rejection Email": {
+      "main": [
+        [
+          {
+            "node": "Send Response to Frontend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Resume Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "ATS Score Evaluator",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Prepare Resume Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "ATS Score Evaluator",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Resume Text": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3aa40784-6cb5-4f7f-821b-ae465905bc37",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8973f1568764f3a1f9d40a5e4792eb62458f5381945e01b5287d2006f9ee19dc"
+  },
+  "id": "twC3VXWo0hx8WzWzf7l_w",
+  "tags": []
+}
